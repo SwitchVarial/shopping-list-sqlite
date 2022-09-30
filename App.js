@@ -7,17 +7,20 @@ import {
   Pressable,
   TextInput,
   FlatList,
+  Keyboard,
+  Alert,
 } from "react-native";
 import * as SQLite from "expo-sqlite";
+import { Ionicons } from "@expo/vector-icons";
 
 const db = SQLite.openDatabase("shoppingdb.db");
 
 export default function App() {
-  const [product, setProduct] = useState("");
-  const [amount, setAmount] = useState("");
+  const [product, setProduct] = useState();
+  const [amount, setAmount] = useState();
   const [list, setList] = useState([]);
 
-  const createDb = () => {
+  const createTable = () => {
     db.transaction(
       (tx) => {
         tx.executeSql(
@@ -30,22 +33,27 @@ export default function App() {
   };
 
   useEffect(() => {
-    createDb();
+    createTable();
   }, []);
 
   const addItem = () => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(`insert into list (product, amount) values (?, ?);`, [
-          product,
-          amount,
-        ]);
-      },
-      null,
-      updateList
-    );
-    setProduct("");
-    setAmount("");
+    if (product !== undefined && amount !== undefined) {
+      Keyboard.dismiss();
+      db.transaction(
+        (tx) => {
+          tx.executeSql(`insert into list (product, amount) values (?, ?);`, [
+            product,
+            amount,
+          ]);
+        },
+        null,
+        updateList
+      );
+      setProduct();
+      setAmount();
+    } else {
+      Alert.alert("Product and Amount are required fields!");
+    }
   };
 
   const updateList = () => {
@@ -87,33 +95,36 @@ export default function App() {
           value={amount}
         />
         <Pressable style={styles.button} onPress={addItem}>
-          <Text style={styles.buttontext}>Add</Text>
+          <View style={styles.row}>
+            <Text style={styles.buttontext}>Add +</Text>
+          </View>
         </Pressable>
       </View>
-      <View style={styles.listTitle}>
-        <Text style={styles.title}>Shopping List</Text>
-      </View>
       <View style={styles.list}>
+        <Text style={styles.title}>Shopping List</Text>
         <FlatList
           style={styles.text}
           data={list}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => {
             return (
               <View style={styles.row}>
                 <Text style={styles.text}>
                   {item.product}, {item.amount}
                 </Text>
-                <Text
-                  style={styles.deleteText}
+                <Pressable
+                  style={styles.doneButton}
                   onPress={() => deleteItem(item.id)}
                 >
-                  {" "}
-                  Bought
-                </Text>
+                  <Ionicons
+                    name="checkmark-circle-sharp"
+                    size={32}
+                    color="steelblue"
+                  />
+                </Pressable>
               </View>
             );
           }}
-          keyExtractor={(item) => item.id}
         />
       </View>
     </View>
@@ -125,53 +136,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "powderblue",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  listTitle: {
-    flex: 2,
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
   },
   control: {
-    flex: 2,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     width: "100%",
-    marginTop: 100,
+    marginTop: 60,
   },
   list: {
-    marginTop: 5,
-    flex: 9,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     width: "100%",
+    marginTop: 20,
   },
   row: {
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    width: "90%",
+    width: "100%",
   },
   input: {
     margin: 7,
-    width: "80%",
+    width: "90%",
     padding: 15,
     backgroundColor: "white",
   },
   button: {
     alignItems: "center",
     justifyContent: "center",
-    margin: 7,
+    marginTop: 7,
+    width: "90%",
     padding: 15,
     backgroundColor: "steelblue",
   },
-  deleteButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 7,
-    padding: 15,
-    backgroundColor: "steelblue",
+  doneButton: {
+    marginLeft: 7,
   },
   buttontext: {
     fontSize: 20,
@@ -182,7 +181,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 30,
-    marginTop: 40,
+    marginBottom: 15,
     fontWeight: "bold",
     letterSpacing: 0.25,
     color: "steelblue",
